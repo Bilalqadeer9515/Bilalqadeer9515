@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Job Portal with Login</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 0; }
+    header { background-color: #0073e6; color: white; padding: 20px; text-align: center; }
+    .container { width: 80%; margin: 20px auto; }
+    form { background: white; padding: 20px; margin-bottom: 20px; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
+    form input, form textarea { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+    button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
+    .login-form button { background-color: #0073e6; color: white; }
+    .logout-btn { background: red; color: white; float: right; margin-top: -40px; }
+    .job-card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
+    .job-card button { margin-right: 5px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Job Portal</h1>
+  <button class="logout-btn hidden" onclick="logout()">Logout</button>
+</header>
+
+<div class="container">
+  <!-- Login/Register Forms -->
+  <div id="authSection">
+    <form id="registerForm" class="login-form">
+      <h2>Register</h2>
+      <input type="text" id="regUsername" placeholder="Username" required />
+      <input type="password" id="regPassword" placeholder="Password" required />
+      <button type="submit">Register</button>
+    </form>
+
+    <form id="loginForm" class="login-form">
+      <h2>Login</h2>
+      <input type="text" id="loginUsername" placeholder="Username" required />
+      <input type="password" id="loginPassword" placeholder="Password" required />
+      <button type="submit">Login</button>
+    </form>
+  </div>
+
+  <!-- Job Portal Section -->
+  <div id="jobPortal" class="hidden">
+    <div>
+      <input type="text" id="searchInput" placeholder="Search jobs..." onkeyup="searchJobs()" />
+      <button onclick="exportJobs()">Download Job List</button>
+    </div>
+
+    <div id="jobList"></div>
+
+    <form id="jobForm">
+      <h2 id="formTitle">Post a Job</h2>
+      <input type="text" id="title" placeholder="Job Title" required />
+      <input type="text" id="company" placeholder="Company Name" required />
+      <input type="text" id="location" placeholder="Location" required />
+      <input type="text" id="salary" placeholder="Salary" required />
+      <textarea id="description" placeholder="Job Description" rows="4" required></textarea>
+      <button type="submit" id="submitBtn">Post Job</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // ==== LOGIN SYSTEM ====
+  const users = JSON.parse(localStorage.getItem("users")) || {};
+  const isLoggedIn = localStorage.getItem("loggedInUser");
+
+  function showPortal() {
+    document.getElementById("authSection").classList.add("hidden");
+    document.getElementById("jobPortal").classList.remove("hidden");
+    document.querySelector(".logout-btn").classList.remove("hidden");
+  }
+
+  function logout() {
+    localStorage.removeItem("loggedInUser");
+    location.reload();
+  }
+
+  if (isLoggedIn) showPortal();
+
+  document.getElementById("registerForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    const user = document.getElementById("regUsername").value;
+    const pass = document.getElementById("regPassword").value;
+
+    if (users[user]) {
+      alert("Username already exists.");
+    } else {
+      users[user] = pass;
+      localStorage.setItem("users", JSON.stringify(users));
+      alert("Registration successful!");
+    }
+  });
+
+  document.getElementById("loginForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    const user = document.getElementById("loginUsername").value;
+    const pass = document.getElementById("loginPassword").value;
+
+    if (users[user] === pass) {
+      localStorage.setItem("loggedInUser", user);
+      showPortal();
+    } else {
+      alert("Invalid credentials.");
+    }
+  });
+
+  // ==== JOB PORTAL LOGIC ====
+  let jobs = JSON.parse(localStorage.getItem("jobs")) || [];
+  let editIndex = -1;
+
+  function displayJobs() {
+    const jobList = document.getElementById("jobList");
+    jobList.innerHTML = "";
+    jobs.forEach((job, index) => {
+      const card = document.createElement("div");
+      card.className = "job-card";
+      card.innerHTML = `
+        <h3>${job.title}</h3>
+        <p><b>Company:</b> ${job.company}</p>
+        <p><b>Location:</b> ${job.location}</p>
+        <p><b>Salary:</b> ${job.salary}</p>
+        <p>${job.description}</p>
+        <button onclick="editJob(${index})">Edit</button>
+        <button onclick="deleteJob(${index})">Delete</button>
+      `;
+      jobList.appendChild(card);
+    });
+  }
+
+  function searchJobs() {
+    const input = document.getElementById("searchInput").value.toLowerCase();
+    const cards = document.querySelectorAll(".job-card");
+    cards.forEach(c => {
+      const t = c.innerText.toLowerCase();
+      c.style.display = t.includes(input) ? "block" : "none";
+    });
+  }
+
+  function exportJobs() {
+    const blob = new Blob([JSON.stringify(jobs, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "job_list.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function deleteJob(index) {
+    if (confirm("Delete this job?")) {
+      jobs.splice(index, 1);
+      localStorage.setItem("jobs", JSON.stringify(jobs));
+      displayJobs();
+    }
+  }
+
+  function editJob(index) {
+    const job = jobs[index];
+    document.getElementById("title").value = job.title;
+    document.getElementById("company").value = job.company;
+    document.getElementById("location").value = job.location;
+    document.getElementById("salary").value = job.salary;
+    document.getElementById("description").value = job.description;
+    document.getElementById("formTitle").innerText = "Edit Job";
+    document.getElementById("submitBtn").innerText = "Update Job";
+    editIndex = index;
+  }
+
+  document.getElementById("jobForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    const job = {
+      title: document.getElementById("title").value,
+      company: document.getElementById("company").value,
+      location: document.getElementById("location").value,
+      salary: document.getElementById("salary").value,
+      description: document.getElementById("description").value,
+    };
+
+    if (editIndex === -1) {
+      jobs.push(job);
+    } else {
+      jobs[editIndex] = job;
+      editIndex = -1;
+      document.getElementById("formTitle").innerText = "Post a Job";
+      document.getElementById("submitBtn").innerText = "Post Job";
+    }
+
+    localStorage.setItem("jobs", JSON.stringify(jobs));
+    displayJobs();
+    this.reset();
+  });
+
+  displayJobs();
+</script>
+
+</body>
+</html>
